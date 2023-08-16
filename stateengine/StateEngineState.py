@@ -19,13 +19,16 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this plugin. If not, see <http://www.gnu.org/licenses/>.
 #########################################################################
-from lib.item.item import Item
+
 from . import StateEngineTools
 from . import StateEngineConditionSets
 from . import StateEngineActions
 from . import StateEngineValue
 from . import StateEngineStruct
+from . import StateEngineDefaults
+
 from lib.item import Items
+from lib.item.item import Item
 
 
 # Class representing an object state, consisting of name, conditions to be met and configured actions for state
@@ -74,9 +77,9 @@ class SeState(StateEngineTools.SeItemChild):
         try:
             self.__id = self.__item.property.path
             self._log_info("Init state {}", self.__id)
-        except Exception as err:
+        except Exception as ex:
             self.__id = None
-            self._log_info("Problem init state ID of Item {}. {}", self.__item, err)
+            self._log_info("Problem init state ID of Item {}. {}", self.__item, ex)
         self.__text = StateEngineValue.SeValue(self._abitem, "State Name", False, "str")
         self.__use = StateEngineValue.SeValue(self._abitem, "State configuration extension", True, "item")
         self.__release = StateEngineValue.SeValue(self._abitem, "State released by", True, "item")
@@ -102,7 +105,7 @@ class SeState(StateEngineTools.SeItemChild):
         self._log_decrease_indent(10)
         self._log_info("Check if state '{0}' ('{1}') can be entered:", self.id, self.name)
         self._log_increase_indent()
-        result = self.__conditions.one_conditionset_matching()
+        result = self.__conditions.one_conditionset_matching(self)
         self._log_decrease_indent()
         if result:
             self._log_info("State {} can be entered", self.id)
@@ -111,7 +114,7 @@ class SeState(StateEngineTools.SeItemChild):
         return result
 
     # log state data
-    def write_to_log(self):
+    def write_to_log(self, log_level=StateEngineDefaults.log_level):
         self._abitem._initstate = self
         self._log_info("State {0}:", self.id)
         self._log_increase_indent()
@@ -137,36 +140,36 @@ class SeState(StateEngineTools.SeItemChild):
         if self.__conditions.count() > 0:
             self._log_info("Condition sets to enter state:")
             self._log_increase_indent()
-            self.__conditions.write_to_logger()
+            self.__conditions.write_to_logger(log_level)
             self._log_decrease_indent()
 
         if self.__actions_enter.count() > 0:
             self._log_info("Actions to perform on enter:")
             self._log_increase_indent()
-            self.__actions_enter.write_to_logger()
+            self.__actions_enter.write_to_logger(log_level)
             self._log_decrease_indent()
-            self._abitem.update_webif([self.id, 'actions_enter'], self.__actions_enter.dict_actions)
+            self._abitem.update_webif([self.id, 'actions_enter'], self.__actions_enter.dict_actions('actions_enter', self.id))
 
         if self.__actions_stay.count() > 0:
             self._log_info("Actions to perform on stay:")
             self._log_increase_indent()
-            self.__actions_stay.write_to_logger()
+            self.__actions_stay.write_to_logger(log_level)
             self._log_decrease_indent()
-            self._abitem.update_webif([self.id, 'actions_stay'], self.__actions_stay.dict_actions)
+            self._abitem.update_webif([self.id, 'actions_stay'], self.__actions_stay.dict_actions('actions_stay', self.id))
 
         if self.__actions_enter_or_stay.count() > 0:
             self._log_info("Actions to perform on enter or stay:")
             self._log_increase_indent()
-            self.__actions_enter_or_stay.write_to_logger()
+            self.__actions_enter_or_stay.write_to_logger(log_level)
             self._log_decrease_indent()
-            self._abitem.update_webif([self.id, 'actions_enter_or_stay'], self.__actions_enter_or_stay.dict_actions)
+            self._abitem.update_webif([self.id, 'actions_enter_or_stay'], self.__actions_enter_or_stay.dict_actions('actions_enter_or_stay', self.id))
 
         if self.__actions_leave.count() > 0:
             self._log_info("Actions to perform on leave (instant leave: {})", self._abitem.instant_leaveaction)
             self._log_increase_indent()
-            self.__actions_leave.write_to_logger()
+            self.__actions_leave.write_to_logger(log_level)
             self._log_decrease_indent()
-            self._abitem.update_webif([self.id, 'actions_leave'], self.__actions_leave.dict_actions)
+            self._abitem.update_webif([self.id, 'actions_leave'], self.__actions_leave.dict_actions('actions_leave', self.id))
         self._abitem.set_variable("current.state_name", "")
         self._abitem.set_variable("current.state_id", "")
         self._log_decrease_indent()
@@ -186,8 +189,10 @@ class SeState(StateEngineTools.SeItemChild):
         self._log_increase_indent()
         self._log_debug("Update web interface enter {}", self.id)
         self._log_increase_indent()
-        self._abitem.update_webif([self.id, 'actions_enter_or_stay'], self.__actions_enter_or_stay.dict_actions)
-        self._abitem.update_webif([self.id, 'actions_enter'], self.__actions_enter.dict_actions)
+        if self.__actions_enter_or_stay.count() > 0:
+            self._abitem.update_webif([self.id, 'actions_enter_or_stay'], self.__actions_enter_or_stay.dict_actions('actions_enter_or_stay', self.id))
+        if self.__actions_enter.count() > 0:
+            self._abitem.update_webif([self.id, 'actions_enter'], self.__actions_enter.dict_actions('actions_enter', self.id))
         self._log_decrease_indent()
         self._log_decrease_indent()
 
@@ -206,8 +211,10 @@ class SeState(StateEngineTools.SeItemChild):
         self._log_increase_indent()
         self._log_debug("Update web interface stay {}", self.id)
         self._log_increase_indent()
-        self._abitem.update_webif([self.id, 'actions_enter_or_stay'], self.__actions_enter_or_stay.dict_actions)
-        self._abitem.update_webif([self.id, 'actions_stay'], self.__actions_stay.dict_actions)
+        if self.__actions_enter_or_stay.count() > 0:
+            self._abitem.update_webif([self.id, 'actions_enter_or_stay'], self.__actions_enter_or_stay.dict_actions('actions_enter_or_stay', self.id))
+        if self.__actions_stay.count() > 0:
+            self._abitem.update_webif([self.id, 'actions_stay'], self.__actions_stay.dict_actions('actions_stay', self.id))
         self._log_decrease_indent()
         self._log_decrease_indent()
 
@@ -224,7 +231,8 @@ class SeState(StateEngineTools.SeItemChild):
         self._log_increase_indent()
         self._log_debug("Update web interface leave {}", self.id)
         self._log_increase_indent()
-        self._abitem.update_webif([self.id, 'actions_leave'], self.__actions_leave.dict_actions)
+        if self.__actions_leave.count() > 0:
+            self._abitem.update_webif([self.id, 'actions_leave'], self.__actions_leave.dict_actions('actions_leave', self.id))
         self._log_decrease_indent()
         self._log_decrease_indent()
 

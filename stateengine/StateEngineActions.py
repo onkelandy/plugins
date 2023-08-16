@@ -20,6 +20,8 @@
 #########################################################################
 from . import StateEngineAction
 from . import StateEngineTools
+from . import StateEngineDefaults
+
 import ast
 import threading
 import queue
@@ -27,14 +29,6 @@ import queue
 
 # Class representing a list of actions
 class SeActions(StateEngineTools.SeItemChild):
-    @property
-    def dict_actions(self):
-        result = {}
-        for name in self.__actions:
-            self._abitem._initactionname = name
-            result.update({name: self.__actions[name].get()})
-            self._abitem._initactionname = None
-        return result
 
     # Initialize the set of actions
     # abitem: parent SeItem instance
@@ -55,6 +49,18 @@ class SeActions(StateEngineTools.SeItemChild):
 
     def __repr__(self):
         return "SeActions, count {}".format(self.count())
+
+    def dict_actions(self, type, state):
+        result = {}
+        for name in self.__actions:
+            self._abitem._initactionname = name
+            result.update({name: self.__actions[name].get()})
+            try:
+                result[name].update({'actionstatus': self._abitem.webif_infos[state][type][name].get('actionstatus')})
+            except Exception:
+                pass
+            self._abitem._initactionname = None
+        return result
 
     # Return number of actions in list
     def count(self):
@@ -390,7 +396,7 @@ class SeActions(StateEngineTools.SeItemChild):
     # item_allow_repeat: Is repeating actions generally allowed for the item?
     # state: state item triggering the action
     # additional_actions: SeActions-Instance containing actions which should be executed, too
-    def execute(self, is_repeat: bool, allow_item_repeat: bool, state: str, additional_actions=None):
+    def execute(self, is_repeat: bool, allow_item_repeat: bool, state, additional_actions=None):
         actions = []
         for name in self.__actions:
             actions.append((self.__actions[name].get_order(), self.__actions[name]))
@@ -426,7 +432,7 @@ class SeActions(StateEngineTools.SeItemChild):
         return finalactions
 
     # log all actions
-    def write_to_logger(self):
+    def write_to_logger(self, log_level=StateEngineDefaults.log_level):
         actions = []
         for name in self.__actions:
             actions.append((self.__actions[name].get_order(), self.__actions[name]))
@@ -435,6 +441,6 @@ class SeActions(StateEngineTools.SeItemChild):
             self._log_info("Action '{0}':", action.name)
             self._log_increase_indent()
             self._abitem._initactionname = action.name
-            action.write_to_logger()
+            action.write_to_logger(log_level)
             self._abitem._initactionname = None
             self._log_decrease_indent()

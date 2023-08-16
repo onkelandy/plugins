@@ -39,7 +39,7 @@ plugin:
     state: ready
     support: https://knx-user-forum.de/forum/supportforen/smarthome-py/1303071-stateengine-plugin-support
 
-    version: 1.9.6
+    version: 1.10.0
     sh_minversion: 1.6
     multi_instance: False
     classname: StateEngine
@@ -1358,6 +1358,12 @@ item_attribute_prefixes:
         description:
             de: 'Definiert das Item, das in einem konkreten Zustand evaluiert oder geändert werden soll'
             en: 'Definition of an item that should be evaluated or changed in a specific state'
+
+    se_status_:
+        type: foo
+        description:
+            de: 'Definiert das Item, das in einem konkreten Zustand evaluiert werden soll'
+            en: 'Definition of an item that should be evaluated in a specific state'
 
     se_eval_:
         type: foo
