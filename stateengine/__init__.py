@@ -35,11 +35,18 @@ from lib.model.smartplugin import *
 from lib.item import Items
 from .webif import WebInterface
 
+try:
+    import pydotplus
+    VIS_ENABLED = True
+except Exception:
+    VIS_ENABLED = False
+
+
 logging.addLevelName(StateEngineDefaults.VERBOSE, 'DEVELOP')
 
 
 class StateEngine(SmartPlugin):
-    PLUGIN_VERSION = '1.9.6'
+    PLUGIN_VERSION = '1.10.0'
 
     # Constructor
     # noinspection PyUnusedLocal,PyMissingConstructor
@@ -52,6 +59,9 @@ class StateEngine(SmartPlugin):
         self.__sh = sh
         self.alive = False
         self.__cli = None
+        self.vis_enabled = self._test_visualization()
+        if not self.vis_enabled:
+            self.logger.warning(f'StateEngine is missing the PyDotPlus package, WebIf visualization is disabled')
         self.init_webinterface(WebInterface)
         self.__log_directory = self.get_parameter_value("log_directory")
         try:
@@ -94,6 +104,10 @@ class StateEngine(SmartPlugin):
         item.expand_relativepathes('se_manual_logitem', '', '')
         try:
             item.expand_relativepathes('se_item_*', '', '')
+        except Exception:
+            pass
+        try:
+            item.expand_relativepathes('se_status_*', '', '')
         except Exception:
             pass
         if self.has_iattr(item.conf, "se_manual_include") or self.has_iattr(item.conf, "se_manual_exclude"):
@@ -202,10 +216,34 @@ class StateEngine(SmartPlugin):
                         <img src="static/img/visualisations/{0}.svg"\
                         style="max-width: 100%; height: auto; width: auto\9; ">\
                         </iframe></object>'.format(abitem)
+        except pydotplus.graphviz.InvocationException as ex:
+           self.logger.error("Problem getting graph for {}. Error: {}".format(abitem, ex))
+           return '<h4>Can not show visualization. Most likely GraphViz is not installed.</h4> ' \
+                  'Current issue: ' + str(ex) + '<br/>'\
+                  'Please make sure <a href="https://graphviz.org/download/" target="_new">' \
+                  'graphviz</a> is installed.<br/>' \
+                  'On Windows add install path to your environment path AND run dot -c. ' \
+                  'Additionally copy dot.exe to fdp.exe!'
         except Exception as ex:
-            self.logger.error("Problem getting graph for {}. Error: {}".format(abitem, ex))
-            return '<h4>Can not show visualization. Most likely GraphViz is missing.</h4> ' \
-                   'Please download and install <a href="https://graphviz.org/download/" target="_new">' \
-                   'https://graphviz.org/download/</a><br/>' \
-                   'on Windows add install path to your environment path AND run dot -c.' \
-                   'Additionally copy dot.exe to fdp.exe!'
+            self.logger.error("Problem getting graph for {}. Unspecified Error: {}".format(abitem, ex))
+            return '<h4>Can not show visualization.</h4> ' \
+                   'Current issue: ' + str(ex) + '<br/>'
+
+
+    def _test_visualization(self):
+        if not VIS_ENABLED:
+            return False
+
+        img_path = self.path_join(self.get_plugin_dir(), 'webif/static/img/visualisations/se_test')
+        graph = pydotplus.Dot('StateEngine', graph_type='digraph', splines='false',
+                                     overlap='scale', compound='false', imagepath=img_path)
+        graph.set_node_defaults(color='lightgray', style='filled', shape='box',
+                                       fontname='Helvetica', fontsize='10')
+        graph.set_edge_defaults(color='darkgray', style='filled', shape='box',
+                                       fontname='Helvetica', fontsize='10')
+
+        try:
+            result = graph.write_svg(img_path, prog='fdp')
+        except pydotplus.graphviz.InvocationException:
+            return False
+        return True

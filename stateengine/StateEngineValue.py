@@ -23,6 +23,8 @@ from . import StateEngineTools
 from . import StateEngineEval
 from . import StateEngineStruct
 from . import StateEngineStructs
+from . import StateEngineDefaults
+
 from lib.item import Items
 from lib.item.item import Item
 import re
@@ -137,7 +139,6 @@ class SeValue(StateEngineTools.SeItemChild):
     # value: string indicating value or source of value
     # name: name of object ("time" is being handled differently)
     def set(self, value, name="", reset=True, item=None):
-        value = copy.deepcopy(value)
         if reset:
             self.__resetvalue()
         if isinstance(value, list):
@@ -216,8 +217,8 @@ class SeValue(StateEngineTools.SeItemChild):
                     self.__listorder = [i for i in self.__listorder if i != value]
                     source, field_value, value = None, None, None
             try:
-                cond1 = source.isdigit()
-                cond2 = field_value.isdigit()
+                cond1 = source.lstrip('-').replace('.','',1).isdigit()
+                cond2 = field_value.lstrip('-').replace('.','',1).isdigit()
             except Exception:
                 cond1 = False
                 cond2 = False
@@ -259,8 +260,8 @@ class SeValue(StateEngineTools.SeItemChild):
                                                       self.__template)
                                     s = None
                     try:
-                        cond1 = s.isdigit()
-                        cond2 = field_value[i].isdigit()
+                        cond1 = s.lstrip('-').replace('.','',1).isdigit()
+                        cond2 = field_value[i].lstrip('-').replace('.','',1).isdigit()
                     except Exception:
                         cond1 = False
                         cond2 = False
@@ -270,6 +271,13 @@ class SeValue(StateEngineTools.SeItemChild):
                     elif field_value[i] == "":
                         field_value[i] = s
                         s = "value"
+                    cond3 = isinstance(field_value[i], str) and field_value[i].lstrip('-').replace('.','',1).isdigit()
+                    if cond3:
+                        field_value[i] = ast.literal_eval(field_value[i])
+                    elif isinstance(field_value[i], str) and field_value[i].lower() in ['true', 'yes']:
+                        field_value[i] = True
+                    elif isinstance(field_value[i], str) and field_value[i].lower() in ['false', 'no']:
+                        field_value[i] = False
                     self.__value = [] if self.__value is None else [self.__value] if not isinstance(self.__value, list) else self.__value
                     self.__value.append(None if s != "value" else self.__do_cast(field_value[i]))
                 self.__item = [] if self.__item is None else [self.__item] if not isinstance(self.__item, list) else self.__item
@@ -305,6 +313,13 @@ class SeValue(StateEngineTools.SeItemChild):
                 if isinstance(field_value, list) and not self.__allow_value_list:
                     raise ValueError("{0}: value_in is not allowed, problem with {1}. Allowed = {2}".format(
                                      self.__name, field_value, self.__allow_value_list))
+                cond3 = isinstance(field_value, str) and field_value.lstrip('-').replace('.','',1).isdigit()
+                if cond3:
+                    field_value = ast.literal_eval(field_value)
+                elif isinstance(field_value, str) and field_value.lower() in ['true', 'yes']:
+                    field_value = True
+                elif isinstance(field_value, str) and field_value.lower() in ['false', 'no']:
+                    field_value = False
                 self.__value = self.__do_cast(field_value)
             else:
                 self.__value = None
@@ -374,49 +389,89 @@ class SeValue(StateEngineTools.SeItemChild):
             return self.__type_listorder
 
     # Write condition to logger
-    def write_to_logger(self):
+    def write_to_logger(self, log_level=StateEngineDefaults.log_level):
         if self.__template is not None:
-            self._log_debug("{0}: Using template(s) {1}", self.__name, self.__template)
+            if log_level == -1:
+                self._log_debug("{0}: Using template(s) {1}", self.__name, self.__template)
+            else:
+                self._log_info("{0}: Using template(s) {1}", self.__name, self.__template)
         if self.__value is not None:
             if isinstance(self.__value, list):
                 for i in self.__value:
                     if i is not None:
-                        self._log_debug("{0}: {1}", self.__name, i)
+                        if log_level == -1:
+                            self._log_info("{0}: {1} ({2})", self.__name, i, type(i))
+                        else:
+                            self._log_debug("{0}: {1} ({2})", self.__name, i, type(i))
             else:
-                self._log_debug("{0}: {1}", self.__name, self.__value)
+                if log_level == -1:
+                    self._log_info("{0}: {1} ({2})", self.__name, self.__value, type(self.__value))
+                else:
+                    self._log_debug("{0}: {1} ({2})", self.__name, self.__value, type(self.__value))
         if self.__regex is not None:
             if isinstance(self.__regex, list):
                 for i in self.__regex:
                     if i is not None:
-                        self._log_debug("{0} from regex: {1}", self.__name, i)
+                        if log_level == -1:
+                            self._log_info("{0} from regex: {1}", self.__name, i)
+                        else:
+                            self._log_debug("{0} from regex: {1}", self.__name, i)
             else:
-                self._log_debug("{0} from regex: {1}", self.__name, self.__regex)
+                if log_level == -1:
+                    self._log_info("{0} from regex: {1}", self.__name, self.__regex)
+                else:
+                    self._log_debug("{0} from regex: {1}", self.__name, self.__regex)
         if self.__struct is not None:
             if isinstance(self.__struct, list):
                 for i in self.__struct:
                     if i is not None:
-                        self._log_debug("{0} from struct: {1}", self.__name, i.property.path)
+                        if log_level == -1:
+                            self._log_info("{0} from struct: {1}", self.__name, i.property.path)
+                        else:
+                            self._log_debug("{0} from struct: {1}", self.__name, i.property.path)
+
             else:
-                self._log_debug("{0} from struct: {1}", self.__name, self.__struct.property.path)
+                if log_level == - 1:
+                    self._log_info("{0} from struct: {1}", self.__name, self.__struct.property.path)
+                else:
+                    self._log_debug("{0} from struct: {1}", self.__name, self.__struct.property.path)
         if self.__item is not None:
             if isinstance(self.__item, list):
                 for i in self.__item:
                     if i is not None:
-                        self._log_debug("{0} from item: {1}", self.__name, i.property.path)
+                        if log_level == - 1:
+                            self._log_info("{0} from item: {1}", self.__name, i.property.path)
+                        else:
+                            self._log_debug("{0} from item: {1}", self.__name, i.property.path)
             else:
-                self._log_debug("{0} from item: {1}", self.__name, self.__item.property.path)
+                if log_level == - 1:
+                    self._log_info("{0} from item: {1}", self.__name, self.__item.property.path)
+                else:
+                    self._log_debug("{0} from item: {1}", self.__name, self.__item.property.path)
         if self.__eval is not None:
-            self._log_debug("{0} from eval: {1}", self.__name, self.__eval)
+            if log_level == - 1:
+                self._log_info("{0} from eval: {1}", self.__name, self.__eval)
+            else:
+                self._log_debug("{0} from eval: {1}", self.__name, self.__eval)
             _original_listorder = copy.copy(self.__listorder)
-            self._log_debug("Currently eval results in {}", self.__get_eval())
+            if log_level == - 1:
+                self._log_info("Currently eval results in {}", self.__get_eval())
+            else:
+                self._log_debug("Currently eval results in {}", self.__get_eval())
             self.__listorder = _original_listorder
         if self.__varname is not None:
             if isinstance(self.__varname, list):
                 for i in self.__varname:
                     if i is not None:
-                        self._log_debug("{0} from variable: {1}", self.__name, i)
+                        if log_level == - 1:
+                            self._log_info("{0} from variable: {1}", self.__name, i)
+                        else:
+                            self._log_debug("{0} from variable: {1}", self.__name, i)
             else:
-                self._log_debug("{0} from variable: {1}", self.__name, self.__varname)
+                if log_level == - 1:
+                    self._log_info("{0} from variable: {1}", self.__name, self.__varname)
+                else:
+                    self._log_debug("{0} from variable: {1}", self.__name, self.__varname)
 
     # Get Text (similar to logger text)
     # prefix: Prefix for text
@@ -447,8 +502,8 @@ class SeValue(StateEngineTools.SeItemChild):
     def cast_item(self, value):
         try:
             return self._abitem.return_item(value)
-        except Exception as e:
-            self._log_error("Can't cast {0} to item/struct! {1}".format(value, e))
+        except Exception as ex:
+            self._log_error("Can't cast {0} to item/struct! {1}".format(value, ex))
             return value
 
     def __update_item_listorder(self, value, newvalue, id=None):
@@ -523,7 +578,7 @@ class SeValue(StateEngineTools.SeItemChild):
                         if any(x in value for x in ['sh.', '_eval', '(']):
                             raise ValueError("You most likely forgot to prefix your expression with 'eval:'")
                         else:
-                            raise ValueError("Not possible to cast: {}".format(ex))
+                            raise ValueError("Not possible to cast")
                     if value in self.__listorder:
                         self.__listorder[self.__listorder.index(value)] = _newvalue
                     value = _newvalue
@@ -611,7 +666,7 @@ class SeValue(StateEngineTools.SeItemChild):
             if "stateengine_eval" in self.__eval or "se_eval" in self.__eval:
                 # noinspection PyUnusedLocal
                 stateengine_eval = se_eval = StateEngineEval.SeEval(self._abitem)
-            self._log_debug("Checking eval: {0} from list {1}", self.__eval, self.__listorder)
+            self._log_debug("Checking eval: {0}", self.__eval)
             self._log_increase_indent()
             try:
                 _newvalue = self.__do_cast(eval(self.__eval))
@@ -619,7 +674,7 @@ class SeValue(StateEngineTools.SeItemChild):
                     self.__listorder[self.__listorder.index('eval:{}'.format(self.__eval))] = _newvalue
                 values = _newvalue
                 self._log_decrease_indent()
-                self._log_debug("Eval result: {0}.", values)
+                self._log_debug("Eval result: {0} ({1}).", values, type(values))
                 self._log_increase_indent()
             except Exception as ex:
                 self._log_decrease_indent()

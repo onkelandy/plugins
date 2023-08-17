@@ -20,6 +20,8 @@
 #########################################################################
 from . import StateEngineConditionSet
 from . import StateEngineTools
+from . import StateEngineDefaults
+
 from collections import OrderedDict
 
 
@@ -61,7 +63,9 @@ class SeConditionSets(StateEngineTools.SeItemChild):
         if name not in self.__condition_sets:
             self.__condition_sets[name] = StateEngineConditionSet.SeConditionSet(self._abitem, name, item)
         # Update this condition set
+        self._log_develop("Starting update of condition '{0}'.", name)
         self.__condition_sets[name].update(item, grandparent_item)
+        self._log_develop("Finished update of condition '{0}'.", name)
 
     # Check the condition sets, optimize and complete them
     # item_state: item to read from
@@ -70,21 +74,21 @@ class SeConditionSets(StateEngineTools.SeItemChild):
             self.__condition_sets[name].complete(item_state)
 
     # Write all condition sets to logger
-    def write_to_logger(self):
+    def write_to_logger(self, log_level=StateEngineDefaults.log_level):
         for name in self.__condition_sets:
             self._log_info("Condition Set '{0}':", name)
             self._log_increase_indent()
-            self.__condition_sets[name].write_to_logger()
+            self.__condition_sets[name].write_to_logger(log_level)
             self._log_decrease_indent()
 
     # check if one of the conditions sets in the list is matching.
     # returns: True = one condition set is matching or no condition sets are defined, False: no condition set matching
-    def one_conditionset_matching(self):
+    def one_conditionset_matching(self, state):
         if self.count() == 0:
             self._log_debug("No condition sets defined -> matching")
             return True
         for name in self.__condition_sets:
-            if self.__condition_sets[name].all_conditions_matching():
+            if self.__condition_sets[name].all_conditions_matching(state):
                 return True
 
         return False

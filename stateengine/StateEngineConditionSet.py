@@ -20,6 +20,8 @@
 #########################################################################
 from . import StateEngineCondition
 from . import StateEngineTools
+from . import StateEngineDefaults
+
 import collections.abc
 from collections import OrderedDict
 
@@ -96,7 +98,7 @@ class SeConditionSet(StateEngineTools.SeItemChild):
                 continue
             # update item/eval in this condition
 
-            if func == "se_item" or func == "se_eval":
+            if func == "se_item" or func == "se_eval" or func == "se_status":
                 if name not in self.__conditions:
                     self.__conditions[name] = StateEngineCondition.SeCondition(self._abitem, name)
                 try:
@@ -125,11 +127,11 @@ class SeConditionSet(StateEngineTools.SeItemChild):
             del self.conditions[name]
 
     # Write the whole condition set to the logger
-    def write_to_logger(self):
+    def write_to_logger(self, log_level=StateEngineDefaults.log_level):
         for name in self.__conditions:
             self._log_info("Condition '{0}':", name)
             self._log_increase_indent()
-            self.__conditions[name].write_to_logger()
+            self.__conditions[name].write_to_logger(log_level)
             self._log_decrease_indent()
 
     def __currentconditionset_set(self, conditionsetid, name):
@@ -142,7 +144,7 @@ class SeConditionSet(StateEngineTools.SeItemChild):
 
     # Check all conditions in the condition set. Return
     # returns: True = all conditions in set are matching, False = at least one condition is not matching
-    def all_conditions_matching(self):
+    def all_conditions_matching(self, state):
         try:
             self._log_info("Check condition set '{0}'", self.__name)
             self._log_increase_indent()
@@ -150,7 +152,7 @@ class SeConditionSet(StateEngineTools.SeItemChild):
             self.__currentconditionset_set(self.__id.property.path, self.__name)
 
             for name in self.__conditions:
-                if not self.__conditions[name].check():
+                if not self.__conditions[name].check(state):
                     self.__currentconditionset_set('', '')
                     return False
             #self._abitem.previousconditionset_set(self._abitem.get_variable('previous.conditionset_id'), self._abitem.get_variable('previous.conditionset_name'))
