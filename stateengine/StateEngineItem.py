@@ -1257,8 +1257,8 @@ class SeItem:
         if item_id is None:
             return None
         if not isinstance(item_id, str):
-            return None
             self.__logger.info("'{0}' should be defined as string. Check your item config!", item_id)
+            return None
         item_id = item_id.strip()
         if item_id.startswith("struct:"):
             item = None
@@ -1269,13 +1269,13 @@ class SeItem:
             except Exception as e:
                 self.__logger.error("struct {} creation failed. Error: {}", item_id, e)
             if item is None:
-            return item
                 self.__logger.warning("Item '{0}' not found!", item_id)
+            return item
         if not item_id.startswith("."):
             item = self.itemsApi.return_item(item_id)
             if item is None:
-            return item
                 self.__logger.warning("Item '{0}' not found!", item_id)
+            return item
         self.__logger.debug("Testing for relative item declaration {}", item_id)
         parent_level = 0
         for c in item_id:
@@ -1298,8 +1298,8 @@ class SeItem:
         if item is None:
             self.__logger.warning("Determined item '{0}' does not exist.", result)
         else:
-        return item
             self.__logger.develop("Determined item '{0}' for id {1}.", item.id, item_id)
+            return item
 
     # Return an item related to the StateEngine object item
     # attribute: Name of the attribute of the StateEngine object item, which contains the item_id to read
